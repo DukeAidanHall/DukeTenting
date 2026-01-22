@@ -23,6 +23,7 @@ focus_inc = 0.1 #keep positive and kinda small (incr ---> increases importance o
 deficit_value = 4 #keep positive (incr --> increases importance of minimizing max-min hours)
 START_SLOT_INDEX = 44     # inclusive (example)
 END_SLOT_INDEX   = 336    # exclusive (example)
+OFFSET_ARRAY = [0,0,0,0,0,0,0,0,0,0,0,0]
 
 ## ==============================
 
@@ -275,6 +276,7 @@ if __name__ == "__main__":
     score = [0 for _ in people]
     focus = [0 for _ in people]
     hours = [0 for _ in people]
+    hours = hours + OFFSET_ARRAY
     assigned = [
         [
             [False for _ in range(48)]
@@ -412,7 +414,7 @@ if __name__ == "__main__":
        trialNum += 1
        print("Each person's hours: ")
        for i in range(len(hours)):
-           print(f"{people[i]}: {hours[i]:.1f} hrs")
+           print(f"{people[i]}: {(hours[i]-OFFSET_ARRAY[i]):.1f} hrs")
        print("----------------------")
        print("Total hours: ", sum(hours))
        print("----------------------")
