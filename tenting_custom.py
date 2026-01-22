@@ -17,9 +17,13 @@ import csv
 #You can alter these coefficients to change the algorithm's behavior and focus on different factors.
 
 avaliable = 100 #keep positive (incr -->increases importance of being avaliable)
-continuity = 40 #keep positive (incr --> increases importance of continuity of shifts)
-hours_dec = -1/2 #keep negative and small (decr ---> increases importance of current total hours at any point)
-focus_inc = 1 #keep positive and kinda small (incr ---> increases importance of slowly increasing focus variable)
+continuity = 20 #keep positive (incr --> increases importance of continuity of shifts)
+hours_dec = -0.5 #keep negative and small (decr ---> increases importance of current total hours at any point)
+focus_inc = 0.1 #keep positive and kinda small (incr ---> increases importance of slowly increasing focus variable)
+deficit_value = 4 #keep positive (incr --> increases importance of minimizing max-min hours)
+START_SLOT_INDEX = 44     # inclusive (example)
+END_SLOT_INDEX   = 336    # exclusive (example)
+
 ## ==============================
 
 
@@ -196,9 +200,9 @@ def findDayValue(slot, p, score, focus, assigned, hours):
     v2 = previousAssigned(p, slot, 2)
     v1 = previousAssigned(p, slot, 1)
     if v8 & v7 & v6 & v5 & v4 & v3 & v2 & v1:
-        value += continuity * 1/8
+        value += continuity * -9999 #1/8
     elif v7 & v6 & v5 & v4 & v3 & v2 & v1:
-        value += continuity * 2/8
+        value += continuity * -9999 #2/8
     elif v6 & v5 & v4 & v3 & v2 & v1:
         value += continuity * 3/8
     elif v5 & v4 & v3 & v2 & v1:
@@ -218,14 +222,35 @@ def findDayValue(slot, p, score, focus, assigned, hours):
 
     return value
 
+
+##def findNightValue(slots, upper, lower, p, score, focus, assigned, hours):
+    # HARD CONSTRAINT: must be free for entire night
+    for i in range(lower, upper + 1):
+        if busy[p][slots[i].day][slots[i].row]:
+            return -1e9  # effectively disqualify
+
+    value = 0
+
+    # Fully available → full availability reward
+    value += avaliable
+
+    value += hours[p] * hours_dec
+    value += focus[p] * focus_inc
+
+    return value
+
+def in_bounds(day, row):
+    idx = day * 48 + row
+    return START_SLOT_INDEX <= idx < END_SLOT_INDEX
+
 def findNightValue(slots, upper, lower, p, score, focus, assigned, hours):
     value = 0
     
-    avalibility = 0
-    for i in range(lower, upper+1):
-        if not busy[p][slots[i].day][slots[i].row]:
-            avalibility += 1
-    value += (avalibility / (upper - lower + 1)) * avaliable
+    availability = 0
+    for row in range(lower, upper + 1):
+       if not busy[p][slot.day][row]:
+        availability += 1
+    value += (availability / (upper - lower + 1)) * avaliable
     
     value += hours[p] * hours_dec
 
@@ -259,6 +284,7 @@ if __name__ == "__main__":
     ]
 
     for slot in slots:
+        
         for p, name in enumerate(people):
             if not busy[p][slot.day][slot.row]:
                 score[p] = score[p] + 1
@@ -271,10 +297,12 @@ if __name__ == "__main__":
         ]
         for _ in range(12)
        ]
-       for slot in slots:   
+       for slot in slots:
+           if slot.index < START_SLOT_INDEX or slot.index >= END_SLOT_INDEX:
+               continue
            highest_focus = max(focus)
            values = [0 for _ in people]
-           if slot.day == 5 or slot.day == 6:
+           if slot.day == 0 or slot.day == 6:
               if slot.row >= 14 and slot.row <=45: #4
                 newNight = True
                 for p, name in enumerate(people):
@@ -282,8 +310,10 @@ if __name__ == "__main__":
                     values[p] = value
                 top_indices = np.argsort(values)[-dayNum:][::-1]
                 for i in top_indices:
-                    assigned[i][slot.day][slot.row] = True
-                    hours[i] = hours[i] + 0.5
+                    if in_bounds(slot.day, slot.row):
+                        assigned[i][slot.day][slot.row] = True
+                        hours[i] += 0.5
+
               else:
                    if newNight:
                        newNight = False
@@ -292,27 +322,35 @@ if __name__ == "__main__":
                        for p, name in enumerate(people):
                           value = findNightValue(slots, upper, lower, p, score, focus, assigned, hours)
                           values[p] = value
-                       top_indices = np.argsort(values)[-nightNum:][::-1]
+                       top_indices = np.argsort(values)[-nightNum:][::-1] ##nightNum highest scoring indices
                        fillArray = []
                        for i in top_indices:
                                for row in range(lower,upper+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+
                                fillArray.append(hours[i])
                        top_fill_indices = np.argsort(fillArray)[-dayNum:][::-1]
                        if slot.day != 0:
                            for i in top_fill_indices:
                                for row in range(46,47+1):
-                                   assigned[i][slot.day-1][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day - 1, row):
+                                       assigned[i][slot.day - 1][row] = True
+                                       hours[i] += 0.5
+
                                for row in range(0,4+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+
                        else: 
                            for i in top_fill_indices: 
                                for row in range(0,4+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5 
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+
            else:
                if slot.row >= 14 and slot.row <=45: #1
                    newNight = True
@@ -321,8 +359,10 @@ if __name__ == "__main__":
                        values[p] = value
                    top_indices = np.argsort(values)[-dayNum:][::-1]
                    for i in top_indices:
-                       assigned[i][slot.day][slot.row] = True
-                       hours[i] = hours[i] + 0.5
+                       if in_bounds(slot.day, slot.row):
+                           assigned[i][slot.day][slot.row] = True
+                           hours[i] += 0.5
+
                else:
                    if newNight:
                        newNight = False
@@ -335,23 +375,31 @@ if __name__ == "__main__":
                        fillArray = []
                        for i in top_indices:
                                for row in range(lower,upper+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+
                                fillArray.append(hours[i])
                        top_fill_indices = np.argsort(fillArray)[-dayNum:][::-1]
                        if slot.day != 0:
                            for i in top_fill_indices:
                                for row in range(46,47+1):
-                                   assigned[i][slot.day-1][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day - 1, row):
+                                       assigned[i][slot.day - 1][row] = True
+                                       hours[i] += 0.5
+
                                for row in range(0,1+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+
                        else:
                            for i in top_fill_indices: 
                                for row in range(0,1+1):
-                                   assigned[i][slot.day][row] = True
-                                   hours[i] = hours[i] + 0.5 
+                                   if in_bounds(slot.day, row):
+                                       assigned[i][slot.day][row] = True
+                                       hours[i] += 0.5
+ 
 
 
                        
