@@ -21,9 +21,11 @@ continuity = 20 #keep positive (incr --> increases importance of continuity of s
 hours_dec = -0.5 #keep negative and small (decr ---> increases importance of current total hours at any point)
 focus_inc = 0.1 #keep positive and kinda small (incr ---> increases importance of slowly increasing focus variable)
 deficit_value = 4 #keep positive (incr --> increases importance of minimizing max-min hours)
-START_SLOT_INDEX = 44     # inclusive (how many hours you want to miss on the front end * 2)
-END_SLOT_INDEX   = 336    # exclusive ( 336 - how many hours you want to skip on the back end * 2)
+START_SLOT_INDEX =  0    # inclusive (how many hours you want to miss on the front end * 2)
+END_SLOT_INDEX   =  336  # exclusive ( 336 - how many hours you want to skip on the back end * 2)
 OFFSET_ARRAY = [0,0,0,0,0,0,0,0,0,0,0,0] # positive values only, this should have the excess hours of each person in order
+SETnightNum = 6
+SETdayNum = 1
 
 ## ==============================
 
@@ -268,8 +270,8 @@ if __name__ == "__main__":
         "Tenting_2026_HAJA - Data Zone.csv"
     )
     print("----------------------")
-    nightNum = 10
-    dayNum = 2
+    nightNum = SETnightNum
+    dayNum = SETdayNum
     newNight = True
     maxDeficit = 999
     trialNum = 1
